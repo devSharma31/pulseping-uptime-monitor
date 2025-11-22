@@ -1,0 +1,16 @@
+# Python venv
+functions/.venv/
+
+# Local settings (secrets)
+functions/local.settings.json
+
+# Node modules / build
+dashboard/node_modules/
+dashboard/dist/
+
+# Python cache
+functions/**/__pycache__/
+
+# Editor stuff
+.vscode/
+.idea/

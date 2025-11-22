@@ -1,0 +1,4 @@
+azure-functions
+httpx
+azure-storage-blob
+azure-core
