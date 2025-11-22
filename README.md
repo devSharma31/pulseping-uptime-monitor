@@ -1,60 +1,77 @@
 # PulsePing — Serverless Uptime Monitor + Dashboard
 
-**PulsePing** is a small, realistic uptime monitoring tool:
+**PulsePing** is a small, realistic uptime monitoring project:
 
-- An **Azure Functions** timer trigger pings a list of URLs every few minutes.
-- Each check logs: timestamp, URL, status code, up/down flag, and response time.
-- Results are stored as JSON lines in **Azure Blob Storage** (using Azurite locally).
-- An **HTTP-triggered Azure Function** exposes the last 24 hours of checks as JSON.
-- A **React dashboard** calls that API, shows uptime %, and offers a **CSV export** for incidents.
+- An **Azure Functions** timer trigger pings a list of URLs on a schedule.
+- Each check logs: timestamp, URL, status code, up/down flag, response time.
+- Results are stored as JSON lines in **Azure Blob Storage** (Azurite in local dev).
+- An **HTTP-triggered Function** exposes the last 24 hours of checks as JSON.
+- A **React dashboard** calls that API, shows uptime %, and lets you download a **CSV**.
 
-This matches the CV line:
+This directly matches the CV line:
 
 > **PulsePing — Serverless Uptime Monitor + Dashboard**  
-> Stack: Azure Functions (Timer/HTTP), Python httpx, Azure Blob/Table, React/static JS  
+> Stack: Azure Functions (Timer/HTTP), Python httpx, Azure Blob/Table, React/static JS.  
 > Set up Azure Functions to ping URLs every few minutes and store status and latency in Azure Storage.  
 > Built a small front-end dashboard to show 24-hour history and uptime %, with CSV export so non-technical users can review incidents.
 
 ---
 
-## Stack
+## Tech stack
 
 **Backend**
 
-- Azure Functions (v4)
-  - Timer trigger (`ping_timer`)
-  - HTTP trigger (`get_status`)
+- Azure Functions (v4) — Timer trigger + HTTP trigger
 - Python
-- [`httpx`](https://www.python-httpx.org/) for HTTP checks
-- Azure Blob Storage (via [`azure-storage-blob`](https://pypi.org/project/azure-storage-blob/))
-- Azurite for local emulator (no paid Azure subscription required)
+- [`httpx`](https://www.python-httpx.org/) for HTTP pings
+- Azure Blob Storage via [`azure-storage-blob`](https://pypi.org/project/azure-storage-blob/)
+- [Azurite](https://github.com/Azure/Azurite) for local storage emulation
 
 **Frontend**
 
-- React 18 (via Vite)
-- Fetch API for HTTP calls
-- Simple CSS (no heavy UI framework)
+- React 18 (Vite)
+- Fetch API
+- Simple custom CSS
 
 ---
 
-## What this shows about me as a candidate
+## High-level architecture
 
-This project is deliberately small but realistic. It shows that I can:
+1. **Timer function** (`ping_timer`)
+   - Runs on a CRON schedule (e.g. every minute in dev).
+   - Pings each URL from `PULSEPING_URLS` using `httpx`.
+   - Appends a JSON line to a daily blob in the configured container, e.g.:  
+     `pulseping-logs/pings-2025-11-22.jsonl`.
 
-- Work with **serverless architectures** on Azure (triggers, bindings, app settings).
-- Design a simple **monitoring workflow**:
-  - Schedule checks with a timer trigger.
-  - Log data in a consistent, append-only format.
-  - Expose a clean **read API** on top of the logs.
-- Use **Azure Storage (Blob)** via the official Python SDK.
-- Build a **dashboard for non-technical stakeholders**:
-  - Uptime % per URL.
-  - Recent checks with timestamps and response times.
-  - CSV export for incident review, tickets, or management reports.
-- Think like an **IT Support / Cloud Support engineer**:
-  - Clear timestamps and statuses.
-  - Simple JSON payloads.
-  - Easy handover to another engineer (config-driven URLs, obvious structure).
+2. **HTTP function** (`get_status`)
+   - Reads blobs for the last N hours (default: 24).
+   - Streams + filters JSON lines.
+   - Returns a response of the form:
+
+     ```json
+     {
+       "generated_at": "2025-11-22T14:46:12.722044+00:00",
+       "period_hours": 24,
+       "total_checks": 26,
+       "checks": [
+         {
+           "timestamp": "2025-11-22T14:34:08.792232+00:00",
+           "url": "https://google.com",
+           "status_code": 301,
+           "is_up": true,
+           "response_ms": 85.2
+         }
+       ]
+     }
+     ```
+
+3. **React dashboard** (`dashboard/`)
+   - Calls `GET /api/status?hours=24`.
+   - Shows:
+     - **Summary cards** (monitored URLs, total checks, average uptime).
+     - **Uptime by URL** table (total checks, up count, avg latency, uptime % with badges).
+     - **Recent checks** table with optional URL filter.
+   - “Download CSV” exports the checks as `pulseping-<hours>h-export.csv` for tickets/incident review.
 
 ---
 
@@ -64,6 +81,7 @@ This project is deliberately small but realistic. It shows that I can:
 pulseping-uptime-monitor/
 ├── README.md
 ├── .gitignore
+├── LICENSE
 ├── dashboard/                  # React dashboard (Vite)
 │   ├── index.html
 │   ├── package.json
@@ -79,7 +97,7 @@ pulseping-uptime-monitor/
     ├── requirements.txt
     ├── shared/
     │   ├── __init__.py
-    │   ├── config.py           # URL list + general config helpers
+    │   ├── config.py           # URL list + config helpers
     │   └── storage.py          # Blob read/write helpers
     ├── ping_timer/             # Timer-triggered function
     │   ├── __init__.py
@@ -87,3 +105,25 @@ pulseping-uptime-monitor/
     └── get_status/             # HTTP-triggered function
         ├── __init__.py
         └── function.json
+
+```
+## Running the backend (Azure Functions + Azurite)
+
+1. Prerequisites:
+
+- Python 3.10+
+- Node.js + npm
+- Azure Functions Core Tools v4 (func CLI)
+- Azurite (via npm)
+
+2. Start Azurite:
+
+- Install (once):
+```
+npm install -g azurite
+```
+Run in a separate terminal:
+```
+azurite --silent --location C:\azurite --debug C:\azurite\debug.log
+
+```
