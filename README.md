@@ -8,13 +8,6 @@
 - An **HTTP-triggered Function** exposes the last 24 hours of checks as JSON.
 - A **React dashboard** calls that API, shows uptime %, and lets you download a **CSV**.
 
-This directly matches the CV line:
-
-> **PulsePing — Serverless Uptime Monitor + Dashboard**  
-> Stack: Azure Functions (Timer/HTTP), Python httpx, Azure Blob/Table, React/static JS.  
-> Set up Azure Functions to ping URLs every few minutes and store status and latency in Azure Storage.  
-> Built a small front-end dashboard to show 24-hour history and uptime %, with CSV export so non-technical users can review incidents.
-
 ---
 
 ## Tech stack
@@ -127,3 +120,4 @@ Run in a separate terminal:
 azurite --silent --location C:\azurite --debug C:\azurite\debug.log
 
 ```
+
