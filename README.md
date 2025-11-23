@@ -21,6 +21,18 @@ The idea is simple:
 
 ---
 
+## 🔍 Screenshots
+
+### Dashboard (React UI)
+
+![PulsePing dashboard](docs/pulseping-dashboard.png)
+
+### Status API (JSON response)
+
+![Status API example](docs/pulseping-status-endpoint.png)
+
+---
+
 ## 1. Tech Stack
 
 ### Backend
@@ -102,6 +114,9 @@ pulseping-uptime-monitor/
 ├── README.md
 ├── LICENSE
 ├── .gitignore
+├── docs/
+│   ├── pulseping-dashboard.png          # React UI screenshot
+│   └── pulseping-status-endpoint.png    # /api/status JSON screenshot
 ├── dashboard/                  # React dashboard (Vite)
 │   ├── index.html
 │   ├── package.json
@@ -247,4 +262,5 @@ npm run build
 ## 7. License
 This project is licensed under the MIT License.
 See LICENSE for details.
+
 
