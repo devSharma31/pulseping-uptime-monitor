@@ -19,13 +19,6 @@ The idea is simple:
 > an HTTP function exposes the last 24h as JSON,  
 > and a small React UI shows uptime %, recent checks, and CSV export.
 
-This lines up with how I describe it on my CV:
-
-> **PulsePing — Serverless Uptime Monitor + Dashboard**  
-> Stack: Azure Functions (Timer/HTTP), Python httpx, Azure Blob/Table, React/static JS.  
-> Set up Azure Functions to ping URLs every few minutes and store status and latency in Azure Storage.  
-> Built a small front-end dashboard to show 24-hour history and uptime %, with CSV export so non-technical users can review incidents.
-
 ---
 
 ## 1. Tech Stack
@@ -254,3 +247,4 @@ npm run build
 ## 7. License
 This project is licensed under the MIT License.
 See LICENSE for details.
+
