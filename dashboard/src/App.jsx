@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-// backend URL (local Functions)
-const API_BASE_URL = "http://localhost:7071";
+// Backend URL: set VITE_API_BASE_URL at build time (e.g. https://<func-app>.azurewebsites.net).
+// Falls back to the local Functions host for `npm run dev`.
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:7071").replace(/\/$/, "");
 
 function App() {
   const [data, setData] = useState(null);
