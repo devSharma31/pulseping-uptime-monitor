@@ -1,5 +1,11 @@
 # PulsePing — Serverless Uptime Monitor + Dashboard
 
+**Live dashboard:** https://proud-water-09cf8e200.6.azurestaticapps.net
+**Status API:** https://pulseping-func-dev31.azurewebsites.net/api/status
+
+> To keep hosting cost at ₹0, the backend is switched **off** between demos. If the dashboard says it can't reach the API, the monitor is simply paused — see [Operating it](#operating-it-on-off-at-zero-cost).
+
+
 [![Azure Functions](https://img.shields.io/badge/Azure%20Functions-Python-blue?logo=azure-functions&logoColor=white)]()
 [![Python](https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white)]()
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=1a1a1a)]()
@@ -37,8 +43,8 @@ The idea is simple:
 
 ### Backend
 
-- ⚡ **Azure Functions v4**
-  - Timer trigger: `ping_timer`
+- ⚡ **Azure Functions v4** on the **Flex Consumption** plan (Python v2 programming model)
+  - Timer trigger: `ping_timer` (hourly)
   - HTTP trigger: `get_status`
 - 🐍 **Python**
   - `httpx` for HTTP requests
@@ -48,7 +54,7 @@ The idea is simple:
 
 ### Frontend
 
-- ⚛️ **React 18** (Vite)
+- ⚛️ **React 18** (Vite), hosted on **Azure Static Web Apps (Free)**
 - Fetch API
 - Simple custom CSS (no UI library)
 
@@ -59,7 +65,7 @@ The idea is simple:
 **Backend flow:**
 
 1. **Timer trigger** (`ping_timer`)
-   - Runs on a CRON schedule.
+   - Runs hourly (`0 0 * * * *`).
    - Reads URLs from `PULSEPING_URLS` (comma-separated).
    - Uses `httpx` to ping each URL.
    - Logs each check as one JSON line:
@@ -134,12 +140,8 @@ pulseping-uptime-monitor/
     │   ├── __init__.py
     │   ├── config.py           # config & URL helpers
     │   └── storage.py          # Blob read/write helpers
-    ├── ping_timer/             # Timer-triggered uptime check
-    │   ├── __init__.py
-    │   └── function.json
-    └── get_status/             # HTTP API for dashboard
-        ├── __init__.py
-        └── function.json
+    ├── function_app.py         # ping_timer (timer) + get_status (HTTP), v2 model
+    └── .funcignore
 ```
         
 ## 4. Running the Backend (Functions + Azurite)
@@ -222,42 +224,78 @@ Open:
 ```
 http://localhost:5173
 ```
-The dashboard assumes the backend is at:
+The dashboard reads the backend URL from `VITE_API_BASE_URL` at build time and falls back to `http://localhost:7071` for local development. For a deployed build:
 ```
-// src/App.jsx
-const API_BASE_URL = "http://localhost:7071";
+VITE_API_BASE_URL=https://<your-function-app>.azurewebsites.net npm run build
 ```
-If you deploy Functions, update that to your real URL, e.g.:
-```
-const API_BASE_URL = "https://<your-function-app>.azurewebsites.net";
+(see `dashboard/.env.example`).
+
+## 6. Deployment (live)
+
+```text
+Browser ──HTTPS──▶ Azure Static Web Apps (Free, East Asia)        React dashboard
+   │
+   └──HTTPS──▶ Azure Functions, Flex Consumption (Central India)  GET /api/status
+                     │   ▲
+          hourly timer│   │ reads last 24h
+                     ▼   │
+               Azure Blob Storage (Standard LRS)                  pings-YYYY-MM-DD.jsonl
 ```
 
-## 6. Deployment (High-Level)
-If I were to deploy this for real:
+| Resource | Name | Notes |
+|---|---|---|
+| Resource group | `rg-pulseping` | Central India |
+| Function app | `pulseping-func-dev31` | Flex Consumption, Python 3.11, 512 MB instances, no Application Insights |
+| Storage account | `stpulseping…` | Functions host storage + ping logs; HTTPS/TLS 1.2 only, no public blob access |
+| Static Web App | `pulseping-dashboard` | Free tier |
 
-1. Azure Functions
+**App settings:** `PULSEPING_STORAGE_CONNECTION`, `PULSEPING_URLS`, `PULSEPING_ALLOWED_ORIGINS` (set to the dashboard origin so only it can call the API from a browser).
 
-- Create a Storage Account and a Python Azure Function App.
-- Set App Settings to mirror local.settings.json keys:
-   - AzureWebJobsStorage
-   - PULSEPING_STORAGE_CONNECTION
-   - PULSEPING_CONTAINER_NAME
-   - PULSEPING_URLS
-   - PULSEPING_ALLOWED_ORIGINS
-- Deploy functions/ with VS Code or:
-```
-func azure functionapp publish <your-function-app-name>
+**Deploy the backend** (remote build installs `requirements.txt` in Azure):
+```bash
+cd functions
+zip -r ../pulseping-func.zip . -x ".venv/*" "*__pycache__*" "local.settings.json"
+az functionapp deployment source config-zip -g rg-pulseping -n pulseping-func-dev31 \
+  --src ../pulseping-func.zip --build-remote true
 ```
 
-2. Frontend
-   - Build:
-```
+**Deploy the dashboard:**
+```bash
 cd dashboard
-npm run build
+npm ci
+VITE_API_BASE_URL=https://pulseping-func-dev31.azurewebsites.net npm run build
+npx @azure/static-web-apps-cli deploy ./dist --deployment-token <token> --env production
 ```
-- Deploy dist/ to Azure Static Web Apps, Blob static site, Netlify, Vercel, etc.
-- Update API_BASE_URL to point to the deployed Functions URL.
 
+### Operating it (on/off at zero cost)
+
+PulsePing is a demo, so the backend only runs when it's being shown:
+
+| State | What runs | Cost |
+|---|---|---|
+| Off (`az functionapp stop`) | Nothing — no timer runs, no storage transactions | ~₹0 (a few MB of stored data) |
+| On (`az functionapp start`) | Hourly checks + API | Within the Flex Consumption free grant |
+| Dashboard | Static files on SWA Free | ₹0 always |
+
+```bash
+az functionapp start -g rg-pulseping -n pulseping-func-dev31   # before a demo
+az functionapp stop  -g rg-pulseping -n pulseping-func-dev31   # after
+```
+
+Run an immediate check instead of waiting for the hourly timer:
+```bash
+KEY=$(az functionapp keys list -g rg-pulseping -n pulseping-func-dev31 --query masterKey -o tsv)
+curl -X POST "https://pulseping-func-dev31.azurewebsites.net/admin/functions/ping_timer" \
+  -H "x-functions-key: $KEY" -H "Content-Type: application/json" -d '{"input":""}'
+```
+
+### Design decisions
+
+- **Flex Consumption** — pay-per-execution with a monthly free grant; the older Linux Consumption plan retires in September 2028.
+- **Hourly schedule** — enough history for a 24h uptime view while keeping storage transactions minimal.
+- **Python v2 programming model** — one `function_app.py` with decorators instead of per-function `function.json` folders.
+- **No Application Insights** — avoids a separately billed telemetry service for a demo workload.
+- **CORS locked to the dashboard origin** — the API is public for reads but browsers only allow the dashboard to use it.
 
 ## 7. License
 This project is licensed under the MIT License.
