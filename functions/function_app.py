@@ -17,10 +17,10 @@ from shared.storage import get_pings_last_24h, save_ping_result
 
 app = func.FunctionApp()
 
-# Every 15 minutes. Frequent enough for a demo, small enough to stay
+# Every hour. Frequent enough for a demo, small enough to stay
 # inside the Flex Consumption free grant (and to let scale-to-zero
 # targets actually scale to zero between checks).
-PING_SCHEDULE = "0 */15 * * * *"
+PING_SCHEDULE = "0 0 * * * *"
 
 
 @app.timer_trigger(schedule=PING_SCHEDULE, arg_name="mytimer", run_on_startup=False)
@@ -152,3 +152,4 @@ def get_status(req: func.HttpRequest) -> func.HttpResponse:
             "Access-Control-Allow-Headers": "Content-Type"
         }
     )
+
